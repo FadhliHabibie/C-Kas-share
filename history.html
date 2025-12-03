@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>History - Pencatatan UMKM</title>
+  <link rel="stylesheet" href="style.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+</head>
+<body>
+
+     <div id="sidebar" class="sidebar">
+  <div class="sidebar-header">
+    <h2>C-Kas</h2>
+  </div>
+  <a href="/dashboard.html">Dashboard</a>
+  <a href="/history.html">History</a>
+  <a id="logoutSidebar">Logout</a>
+</div>
+
+<div id="overlay" class="overlay"></div>
+<div class="topbar">
+  <button id="menuBtn" class="menu-btn"><i class="fa-solid fa-bars"></i></button>
+  <div class="header-center">
+    <span class="logo-placeholder"><i class="fa-solid fa-calculator"></i></span>
+    <span class="top-title">C-Kas</span>
+  </div>
+</div>
+
+  <main class="container mobile-container">
+    
+    <div class="card">
+      <h2>Daftar Hari Transaksi</h2>
+      <div id="daysList" class="list"></div>
+    </div>
+
+    </main>
+
+<div id="editModal" class="modal-backdrop">
+    <div class="modal-content">
+        <h2 id="modalTitle">Edit Ringkasan Tanggal [Tanggal]</h2>
+        
+        <div id="dailyEditForm">
+            <label>Total Penjualan Hari Ini (Rp)
+                <input type="number" id="editSalesAmount" placeholder="Contoh: 500000" min="0" value="0"/>
+            </label>
+            <label>Total Pengeluaran Hari Ini (Rp)
+                <input type="number" id="editExpensesAmount" placeholder="Contoh: 150000" min="0" value="0"/>
+            </label>
+        </div>
+        
+        <p id="modalStatus" class="msg muted" style="margin-top: 10px;"></p>
+
+        <div style="margin-top: 20px; display: flex; gap: 10px;">
+            <button id="saveDailyEditBtn" class="btn primary" style="flex-grow: 1;"><i class="fa-solid fa-save"></i> Simpan Perubahan</button>
+            <button id="closeModalBtn" class="btn" style="background: var(--danger-red); color: white;"><i class="fa-solid fa-times"></i> Tutup</button>
+        </div>
+    </div>
+</div>
+<script type="module">
+    import { supabase } from './supabase.js';
+    let user;
+    let chart; 
+    let activeMenu = null; 
+    let activeDetailItem = null; 
+    
+    // VARIABEL GLOBAL UNTUK EDIT
+    let currentEditDate = null;
+    let existingSalesTransactions = [];
+    let existingExpenseTransactions = [];
+
+    // Helper untuk memformat tanggal: DD/MM/YYYY
+    const parseIndoDate = (dateStr) => {
+        const [day, month, year] = dateStr.split('/');
+        return new Date(year, month - 1, day);
+    };
+
+    // Fungsi untuk menutup semua menu aksi
+    const closeAllActionMenus = () => {
+        if (activeMenu) {
+            activeMenu.classList.remove('show');
+            activeMenu = null;
+        }
+    };
+    
+    // FUNGSI UNTUK TOGGLE MENU AKSI (TITIK TIGA)
+    function toggleActionMenu(event, dateStr) {
+        event.stopPropagation(); 
+
+        const item = event.currentTarget.closest('.list-item');
+        const menu = item.querySelector('.action-menu');
+
+        if (activeMenu === menu) {
+            closeAllActionMenus();
+        } else {
+            closeAllActionMenus();
+            menu.classList.add('show');
+            activeMenu = menu;
+        }
+        
+        // Atur fungsi tombol Hapus di menu aksi
+        const deleteButton = menu.querySelector('.delete-action');
+        deleteButton.onclick = (e) => {
+            e.stopPropagation(); 
+            closeAllActionMenus();
+            deleteDay(dateStr); 
+        };
+        
+        // Tombol Edit
+        const editButton = menu.querySelector('.edit-action');
+        editButton.onclick = (e) => {
+            e.stopPropagation();
+            closeAllActionMenus();
+            editDay(dateStr); 
+        };
+    }
+
+    // FUNGSI UNTUK MENUTUP DETAIL YANG SEDANG TERBUKA
+    function closeActiveDetail() {
+        if (activeDetailItem) {
+            const detailContainer = activeDetailItem.nextElementSibling;
+            if (detailContainer && detailContainer.classList.contains('detail-wrapper')) {
+                detailContainer.classList.remove('show'); 
+                
+                setTimeout(() => {
+                   detailContainer.remove();
+                }, 400); 
+            }
+            activeDetailItem.classList.remove('active'); 
+            activeDetailItem = null;
+            if (chart) chart.destroy();
+        }
+    }
+
+    // FUNGSI UNTUK MEMBUKA DETAIL HARI
+    async function openDay(dateStr, currentItem) {
+        closeAllActionMenus(); 
+
+        if (activeDetailItem === currentItem) {
+            closeActiveDetail();
+            return;
+        }
+
+        closeActiveDetail();
+
+        currentItem.classList.add('active');
+        activeDetailItem = currentItem;
+
+        // 1. Buat kontainer detail baru (detail-wrapper)
+        const detailWrapper = document.createElement('div');
+        detailWrapper.className = 'detail-wrapper'; 
+
+        const detailCard = document.createElement('div');
+        detailCard.className = 'card';
+        detailCard.style.marginTop = '12px'; 
+        detailCard.style.marginBottom = '12px';
+        
+        detailWrapper.appendChild(detailCard);
+
+        currentItem.parentNode.insertBefore(detailWrapper, currentItem.nextSibling);
+
+        const dateObj = parseIndoDate(dateStr);
+        const start = new Date(dateObj);
+        const end   = new Date(dateObj);
+
+        start.setHours(0,0,0,0);
+        end.setHours(23,59,59,999);
+        
+        // 2. Segera tambahkan class 'show' untuk memicu animasi muncul
+        setTimeout(() => {
+            detailWrapper.classList.add('show'); 
+        }, 50);
+
+        // Ambil data detail hari ini
+        const { data } = await supabase
+            .from("transactions")
+            .select("*")
+            .eq("user_id", user.id)
+            .gte("created_at", start.toISOString())
+            .lte("created_at", end.toISOString())
+            .order("created_at", { ascending: true });
+
+        const dayObj = new Date(start);
+        const dayName = dayObj.toLocaleDateString("id-ID", { weekday: "long" });
+        const formatted = dayObj.toLocaleDateString("id-ID");
+
+        let sales = 0;
+        let expenses = 0;
+
+        if (data && data.length > 0) {
+            data.forEach(r => {
+                if (r.type === "sale") sales += Number(r.amount);
+                if (r.type === "expense") expenses += Number(r.amount);
+            });
+        }
+        
+        // 3. Render Detail Card
+        detailCard.innerHTML = renderDayDetailHTML(sales, expenses, dayName, formatted, dateStr);
+
+        // 4. TAMPILKAN GRAFIK MINGGUAN
+        const chartCanvas = detailCard.querySelector('#weekChartDetail');
+        if (chartCanvas) {
+            await loadWeeklyHistory(dateObj, chartCanvas);
+        }
+    }
+
+
+    // FUNGSI UNTUK MERENDER HTML DETAIL
+    function renderDayDetailHTML(sales, expenses, dayName, dateStr, rawDateStr) {
+      const net = sales - expenses;
+      const absNet = Math.abs(net);
+      
+      return `
+        <h3 style="margin-top: 0;">${dayName}, ${dateStr}</h3>
+        <div class="result-header-stats">
+            <div class="stat-item">
+              <span class="stat-icon icon-sale"><i class="fa-solid fa-sack-dollar"></i></span>
+              <div class="stat-label">Penjualan</div>
+              <div class="stat-value">Rp.${sales.toLocaleString("id-ID")}</div>
+            </div>
+
+            <div class="stat-item">
+              <span class="stat-icon icon-expense"><i class="fa-solid fa-money-bill-transfer"></i></span>
+              <div class="stat-label">Pengeluaran</div>
+              <div class="stat-value">Rp.${expenses.toLocaleString("id-ID")}</div>
+            </div>
+
+            <div class="stat-item net-stat">
+              <span class="stat-icon icon-net"><i class="fa-solid fa-chart-line"></i></span>
+              <div class="stat-label">Total Bersih</div>
+              <div class="stat-value">
+                ${net >= 0 ? "+" : "-"}Rp.${absNet.toLocaleString("id-ID")}
+              </div>
+            </div>
+          </div>
+          
+          <div id="detailChart" style="margin-top: 20px;">
+                <h3>Penjualan 7 Hari Terakhir</h3>
+                <canvas id="weekChartDetail" height="150"></canvas>
+            </div>
+            
+            <button id="deleteDayBtn" class="btn primary" 
+            style="background:var(--danger-red); color:white; margin-top: 20px; width: 100%;"
+            onclick="deleteDay('${rawDateStr}')">
+              <i class="fa-solid fa-trash"></i> Hapus Semua Transaksi Hari Ini
+            </button>
+      `;
+    }
+
+
+    // FUNGSI UNTUK MEMUAT GRAFIK MINGGUAN
+    async function loadWeeklyHistory(selectedDateObj, chartCanvas) {
+        const dayOfWeek = selectedDateObj.getDay(); 
+        const daysToStartOfWeek = dayOfWeek === 0 ? 6 : dayOfWeek - 1; 
+
+        const start = new Date(selectedDateObj); 
+        start.setDate(selectedDateObj.getDate() - daysToStartOfWeek);
+        start.setHours(0, 0, 0, 0); 
+
+        const end = new Date(start); 
+        end.setDate(start.getDate() + 6); 
+        end.setHours(23, 59, 59, 999); 
+
+        const { data } = await supabase.from("transactions")
+            .select("created_at, type, amount")
+            .eq("user_id", user.id)
+            .gte("created_at", start.toISOString())
+            .lte("created_at", end.toISOString());
+
+        const labels = [];
+        const values = [];
+        const salesByDay = new Map();
+
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(start);
+            d.setDate(start.getDate() + i);
+            
+            const dateKey = d.toISOString().split('T')[0];
+            salesByDay.set(dateKey, 0);
+            
+            labels.push(d.toLocaleDateString('id-ID', { weekday: 'short' }));
+        }
+        
+        (data || []).forEach(r => {
+            if (r.type === "sale") {
+                const transDate = new Date(r.created_at);
+                const dateKey = transDate.toISOString().split('T')[0]; 
+
+                if (salesByDay.has(dateKey)) {
+                    salesByDay.set(dateKey, salesByDay.get(dateKey) + Number(r.amount));
+                }
+            }
+        });
+
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(start);
+            d.setDate(start.getDate() + i);
+            const dateKey = d.toISOString().split('T')[0];
+            values.push(salesByDay.get(dateKey) || 0); 
+        }
+
+        if (chart) chart.destroy();
+        
+        if (chartCanvas) {
+            chart = new Chart(chartCanvas.getContext("2d"), {
+                type: "bar",
+                data: { 
+                    labels, 
+                    datasets: [{ 
+                        data: values, 
+                        label: "Penjualan (Rp)", 
+                        backgroundColor: '#0faa48'
+                    }] 
+                },
+                options: { 
+                    responsive: true,
+                    plugins: { legend: { display:false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+    }
+
+
+    // FUNGSI PENTING: deleteDay (Hapus Semua Transaksi Hari itu)
+    window.deleteDay = async function(dateStr) {
+        if (!confirm(`Hapus semua transaksi pada tanggal ${dateStr}? Tindakan ini tidak dapat dibatalkan.`)) return;
+
+        const dateObj = parseIndoDate(dateStr);
+        const start = new Date(dateObj);
+        const end   = new Date(dateObj);
+
+        start.setHours(0,0,0,0);
+        end.setHours(23,59,59,999);
+
+        const todayStr = new Date().toLocaleDateString("id-ID");
+        const isToday = dateStr === todayStr;
+
+        try {
+            const { error } = await supabase
+                .from("transactions")
+                .delete()
+                .eq("user_id", user.id)
+                .gte("created_at", start.toISOString())
+                .lte("created_at", end.toISOString());
+
+            if (error) throw error;
+
+            alert("Transaksi hari ini berhasil dihapus!");
+            
+            if (isToday) {
+                window.location.href = '/dashboard.html';
+            } else {
+                closeActiveDetail();
+                await loadHistory();
+            }
+        } catch (e) {
+            alert("Gagal menghapus: " + e.message);
+        }
+    }
+
+    /* ====================================
+       FUNGSI EDIT MODAL (RINGKASAN HARIAN)
+       ==================================== */
+    
+    // FUNGSI UNTUK MEMBUKA MODAL EDIT
+    async function editDay(dateStr) {
+        currentEditDate = dateStr;
+        const modal = document.getElementById('editModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalStatus = document.getElementById('modalStatus');
+        const editSalesAmount = document.getElementById('editSalesAmount');
+        const editExpensesAmount = document.getElementById('editExpensesAmount');
+
+        modalTitle.textContent = `Edit Ringkasan Tanggal ${dateStr}`;
+        modalStatus.textContent = 'Memuat data...';
+        modalStatus.style.display = 'block';
+
+        // Buka modal
+        modal.classList.add('show');
+        
+        // Atur default
+        editSalesAmount.value = 0;
+        editExpensesAmount.value = 0;
+        
+        const dateObj = parseIndoDate(dateStr);
+        const start = new Date(dateObj);
+        const end   = new Date(dateObj);
+        start.setHours(0,0,0,0);
+        end.setHours(23,59,59,999);
+
+        // Ambil data detail hari ini
+        const { data, error } = await supabase
+            .from("transactions")
+            .select("id, type, amount")
+            .eq("user_id", user.id)
+            .gte("created_at", start.toISOString())
+            .lte("created_at", end.toISOString());
+            
+        if (error) {
+            modalStatus.textContent = "Gagal memuat data: " + error.message;
+            return;
+        }
+
+        let totalSales = 0;
+        let totalExpenses = 0;
+        existingSalesTransactions = [];
+        existingExpenseTransactions = [];
+
+        (data || []).forEach(r => {
+            if (r.type === "sale") {
+                totalSales += Number(r.amount);
+                existingSalesTransactions.push(r);
+            } else if (r.type === "expense") {
+                totalExpenses += Number(r.amount);
+                existingExpenseTransactions.push(r);
+            }
+        });
+
+        // Isi formulir dengan total yang ditemukan
+        editSalesAmount.value = totalSales;
+        editExpensesAmount.value = totalExpenses;
+        
+        modalStatus.style.display = 'none';
+        document.getElementById('saveDailyEditBtn').removeAttribute('disabled');
+    }
+
+    // FUNGSI UNTUK MENYIMPAN EDIT HARIAN
+    document.getElementById('saveDailyEditBtn').onclick = saveDailyEdit;
+
+    async function saveDailyEdit() {
+        const btn = document.getElementById('saveDailyEditBtn');
+        const originalText = btn.innerHTML;
+        const modalStatus = document.getElementById('modalStatus');
+        
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+        btn.setAttribute('disabled', 'disabled');
+        modalStatus.style.display = 'block';
+        modalStatus.textContent = 'Memproses perubahan...';
+
+        const newSales = Number(document.getElementById('editSalesAmount').value) || 0;
+        const newExpenses = Number(document.getElementById('editExpensesAmount').value) || 0;
+        
+        if (newSales < 0 || newExpenses < 0) {
+            modalStatus.textContent = 'Penjualan dan Pengeluaran tidak boleh negatif.';
+            btn.innerHTML = originalText;
+            btn.removeAttribute('disabled');
+            return;
+        }
+
+        const dateObj = parseIndoDate(currentEditDate);
+        // Kita gunakan waktu tengah hari untuk transaksi baru (agar representatif)
+        dateObj.setHours(12, 0, 0, 0); 
+        const createdAt = dateObj.toISOString();
+        
+        try {
+            // --- 1. HAPUS SEMUA TRANSAKSI LAMA HARI ITU ---
+            const allIdsToDelete = [
+                ...existingSalesTransactions.map(t => t.id), 
+                ...existingExpenseTransactions.map(t => t.id)
+            ];
+            
+            if (allIdsToDelete.length > 0) {
+                const { error: deleteError } = await supabase
+                    .from('transactions')
+                    .delete()
+                    .in('id', allIdsToDelete);
+                    
+                if (deleteError) throw deleteError;
+            }
+
+            // --- 2. INSERT TRANSAKSI BARU (PENJUALAN) ---
+            if (newSales > 0) {
+                const { error: insertError } = await supabase
+                    .from('transactions')
+                    .insert({ 
+                        user_id: user.id, 
+                        type: 'sale', 
+                        amount: newSales, 
+                        created_at: createdAt
+                    });
+                if (insertError) throw insertError;
+            }
+
+            // --- 3. INSERT TRANSAKSI BARU (PENGELUARAN) ---
+            if (newExpenses > 0) {
+                const { error: insertError } = await supabase
+                    .from('transactions')
+                    .insert({ 
+                        user_id: user.id, 
+                        type: 'expense', 
+                        amount: newExpenses, 
+                        created_at: createdAt
+                    });
+                if (insertError) throw insertError;
+            }
+            
+            modalStatus.textContent = 'Perubahan berhasil disimpan!';
+            alert('Perubahan berhasil disimpan!');
+            
+            // Tutup modal
+            document.getElementById('editModal').classList.remove('show');
+            
+            // Muat ulang history list dan detail
+            await loadHistory(); 
+
+        } catch (e) {
+            modalStatus.textContent = 'Gagal menyimpan perubahan: ' + e.message;
+            btn.innerHTML = originalText;
+            btn.removeAttribute('disabled');
+        }
+    }
+
+
+    // Event listener untuk tombol Tutup Modal
+    document.getElementById('closeModalBtn').onclick = () => {
+        document.getElementById('editModal').classList.remove('show');
+    };
+    
+    /* ====================================
+       LOAD HISTORY UTAMA
+       ==================================== */
+
+    // LOAD HISTORY
+    async function loadHistory() {
+        // Simpan tanggal yang sedang terbuka sebelum memuat ulang list
+        const dateToReopen = activeDetailItem ? activeDetailItem.querySelector('span:not(.trans-type)').textContent.split(', ')[1] : null;
+
+        const { data } = await supabase
+            .from("transactions")
+            .select("created_at")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false });
+
+        const daysList = document.getElementById("daysList");
+        daysList.innerHTML = "";
+        
+        if (!data || data.length === 0) {
+            daysList.innerHTML = "<p class='muted'>Belum ada transaksi.</p>";
+            closeActiveDetail(); 
+            return;
+        }
+
+        const dates = data.map(r => new Date(r.created_at));
+        const uniqueDates = new Set();
+        
+        dates.forEach(d => {
+            const dateStr = d.toLocaleDateString("id-ID");
+            uniqueDates.add(dateStr);
+        });
+        
+        document.removeEventListener('click', closeAllActionMenus);
+        document.addEventListener('click', closeAllActionMenus);
+        
+        uniqueDates.forEach(dateStr => {
+            const dateObj = parseIndoDate(dateStr);
+            const dayName = dateObj.toLocaleDateString("id-ID", { weekday: "long" });
+            
+            const item = document.createElement("div");
+            item.className = "list-item";
+            
+            item.innerHTML = `
+                <span>${dayName}, ${dateStr}</span>
+                <button class="options-btn"><i class="fa-solid fa-ellipsis-v"></i></button>
+                <div class="action-menu">
+                    <button class="edit-action"><i class="fa-solid fa-pencil"></i> Edit</button>
+                    <button class="delete-action delete"><i class="fa-solid fa-trash"></i> Hapus</button>
+                </div>
+            `;
+            
+            // Event Listener untuk BLOK ITEM (Membuka Detail)
+            item.addEventListener('click', (e) => {
+                if (!e.target.closest('.options-btn')) {
+                    openDay(dateStr, item);
+                }
+            });
+
+            // Event Listener untuk TOMBOL TITIK TIGA (Membuka Menu Aksi)
+            const optionsBtn = item.querySelector('.options-btn');
+            optionsBtn.addEventListener('click', (e) => toggleActionMenu(e, dateStr));
+            
+            daysList.appendChild(item);
+        });
+        
+        // Buka kembali detail hari jika sebelumnya ada yang terbuka
+        if (dateToReopen) {
+             const spanEl = daysList.querySelector(`span:contains("${dateToReopen}")`);
+             if (spanEl) {
+                 const itemToReopen = spanEl.closest('.list-item');
+                 if (itemToReopen) {
+                     // Panggil openDay agar detail terisi ulang dengan data terbaru
+                     openDay(dateToReopen, itemToReopen);
+                 }
+             }
+        }
+    }
+
+    // INISIALISASI
+    (async function init() {
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        if (!currentUser) {
+            window.location.href = '/index.html';
+            return;
+        }
+        user = currentUser;
+
+        await loadHistory();
+    })();
+
+    // Sidebar Controls
+    const el = (id) => document.getElementById(id); 
+    const sidebar = el("sidebar");
+    const overlay = el("overlay");
+    const menuBtn = el("menuBtn");
+    const logoutSidebar = el("logoutSidebar");
+
+    menuBtn.addEventListener("click", () => {
+      sidebar.classList.add("show");
+      overlay.classList.add("show");
+    });
+
+    overlay.addEventListener("click", () => {
+      sidebar.classList.remove("show");
+      overlay.classList.remove("show");
+      closeAllActionMenus();
+    });
+
+    logoutSidebar.addEventListener("click", async () => {
+      await supabase.auth.signOut();
+      window.location.href = '/index.html';
+    });
+    
+</script>
+</body>
+</html>

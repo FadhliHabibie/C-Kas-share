@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Login - Pencatatan UMKM</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="container">
+    <div class="card auth-card">
+      <h1 id="title">Login</h1>
+
+      <label>Email
+        <input id="email" type="email" placeholder="contoh@domain.com" />
+      </label>
+
+      <label>Password
+        <input id="password" type="password" placeholder="minimal 6 karakter" />
+      </label>
+
+      <div class="row">
+        <button id="actionBtn" class="btn primary">Login</button>
+        <button id="toggleBtn" class="btn">Buat Akun</button>
+      </div>
+
+      <p id="msg" class="msg"></p>
+    </div>
+  </main>
+
+  <script type="module">
+    import { supabase } from './supabase.js';
+
+    const emailEl = document.getElementById('email');
+    const passEl = document.getElementById('password');
+    const actionBtn = document.getElementById('actionBtn');
+    const toggleBtn = document.getElementById('toggleBtn');
+    const title = document.getElementById('title');
+    const msg = document.getElementById('msg');
+
+    let mode = 'login'; // or 'register'
+
+    toggleBtn.addEventListener('click', () => {
+      if (mode === 'login') {
+        mode = 'register';
+        title.textContent = 'Daftar Akun';
+        actionBtn.textContent = 'Daftar';
+        toggleBtn.textContent = 'Ke Login';
+        msg.textContent = '';
+      } else {
+        mode = 'login';
+        title.textContent = 'Login';
+        actionBtn.textContent = 'Login';
+        toggleBtn.textContent = 'Buat Akun';
+        msg.textContent = '';
+      }
+    });
+
+    actionBtn.addEventListener('click', async () => {
+      const email = emailEl.value.trim();
+      const password = passEl.value.trim();
+      msg.textContent = '';
+
+      if (!email || !password) {
+        msg.textContent = 'Isi email dan password';
+        return;
+      }
+
+      try {
+        if (mode === 'login') {
+          const { error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          // berhasil -> ke dashboard
+          window.location.href = '/dashboard.html';
+        } else {
+          const { error } = await supabase.auth.signUp({ email, password });
+          if (error) throw error;
+          msg.textContent = 'Akun dibuat. Coba login.';
+          // optionally switch to login mode
+          mode = 'login';
+          title.textContent = 'Login';
+          actionBtn.textContent = 'Login';
+          toggleBtn.textContent = 'Buat Akun';
+        }
+      } catch (e) {
+        msg.textContent = e.message || e;
+      }
+    });
+
+    // jika sudah login, langsung ke dashboard
+    (async function check() {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        window.location.href = '/dashboard.html';
+      }
+    })();
+  </script>
+</body>
+</html>

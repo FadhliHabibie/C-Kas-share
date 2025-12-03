@@ -1,0 +1,451 @@
+/* ====================================
+   style.css - TEMA SEAMLESS & BULAT
+   ==================================== */
+
+/* 1. VARIABEL WARNA */
+:root {
+    --bg-light: #f4f6f9; /* Latar belakang halaman */
+    --bg-white: #ffffff; /* Latar belakang card */
+
+    --primary-blue: #2980b9; /* Biru Primer (Tombol Aksi, Net Profit) */
+    --secondary-green: #0faa48; /* Hijau (Penjualan) */
+    --danger-red: #e74c3c; /* Merah (Pengeluaran) */
+    
+    --text-dark: #2c3e50;
+    --text-muted: #95a5a6;
+    --border-light: #ecf0f1; 
+}
+
+/* 2. BASE STYLES & TYPOGRAPHY */
+*{box-sizing:border-box;font-family:Inter, ui-sans-serif, system-ui, Arial, Helvetica, sans-serif}
+body{
+    margin:0;
+    background:var(--bg-light);
+    color:var(--text-dark);
+}
+.container{
+    max-width:1000px;
+    margin:0 auto; /* Hilangkan margin atas untuk topbar yang seamless */
+    padding:16px;
+}
+h1, h2, h3 {
+    color: var(--text-dark);
+}
+.muted {
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.mobile-container {
+    padding: 0; /* Hapus semua padding di container utama */
+    max-width: 600px;
+    margin: 0 auto;
+}
+.title {
+    display: none; /* Judul H1 di body dihilangkan karena sudah ada di Top Bar */
+}
+
+/* 3. CARD & INPUTS (Input Seamless) */
+.card {
+    background:var(--bg-white);
+    padding:16px;
+    border-radius:12px;
+    box-shadow:0 8px 16px rgba(44, 62, 80, 0.08); 
+    margin-bottom:16px;
+    border: 1px solid var(--border-light);
+}
+
+/* style.css - Tambahan: Area Input Full Width */
+.seamless-input-wrapper {
+    /* Tidak perlu margin negatif karena mobile-container padding sudah 0 */
+    
+    /* Tinggi penuh layar dikurangi Topbar height (Kita asumsikan Topbar ~52px) */
+    min-height: calc(100vh - 52px); 
+    
+    background: var(--bg-light); /* Menyatu dengan background halaman */
+    
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Posisikan input dan tombol di tengah vertikal */
+    align-items: center; /* Posisikan input/tombol di tengah horizontal */
+    
+    padding: 0 32px; /* Padding samping untuk estetika */
+    box-shadow: none; 
+    margin-bottom: 0; 
+}
+
+/* Input Seamless dengan Radius */
+/* style.css - Bagian CARD & INPUTS */
+
+/* Input kini menggunakan border penuh, background putih, dan border hitam/gelap */
+input, select{
+    display:block;
+    width:100%;
+    max-width: 320px; 
+    padding:12px 16px; 
+    
+    /* MODIFIKASI: Border berwarna hitam/gelap */
+    border: 2px solid var(--text-dark); /* Menggunakan warna teks gelap */
+    
+    background: var(--bg-white); 
+    
+    border-radius: 10px; 
+    margin-bottom: 20px !important;
+    margin-top: 10px;
+    font-size: 18px; 
+    transition: all 0.2s;
+}
+
+input:focus {
+    /* Saat fokus, border tetap biru primer agar interaktif */
+    border: 2px solid var(--primary-blue); 
+    background: var(--bg-white); 
+    border-radius: 10px; 
+    outline: none;
+}
+
+input::placeholder {
+    color: var(--text-muted); 
+    font-weight: 500;
+}
+
+/* Row (untuk Tombol Simpan) */
+.row {
+    display:flex;
+    justify-content: center;
+    width: 100%;
+    max-width: 320px;
+}
+
+/* Tombol SIMPAN BULAT */
+.round-btn {
+    width: 70px; /* Sedikit lebih besar */
+    height: 70px;
+    padding: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 18px rgba(41, 128, 185, 0.5); /* Shadow lebih tebal */
+    font-size: 30px; /* Ikon lebih besar */
+}
+
+
+/* 5. TOP BAR SEAMLESS & CENTERED */
+.topbar {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--bg-light); 
+  box-shadow: none; 
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom: 1px solid var(--border-light); 
+  justify-content: space-between; /* <-- BARU: Membagi ruang */
+}
+
+.header-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%); 
+    display: flex;
+    align-items: center;
+}
+
+/* Memastikan tombol menu di kiri dan ikon baru di kanan */
+.menu-btn {
+  font-size: 24px;
+  background: none;
+  border: none;
+  color: var(--text-dark);
+  cursor: pointer;
+  z-index: 51; 
+}
+.event-btn {
+    /* Agar ukurannya sama dengan menuBtn, tapi berada di kanan */
+    color: var(--text-dark); 
+}
+
+/* 6. SIDEBAR & OUTPUT (Sisanya sama dari perombakan sebelumnya) */
+.sidebar {
+  width: 260px; height: 100%; background: var(--bg-white); position: fixed; top: 0; left: -260px; padding-top: 20px; transition: left 0.3s ease; z-index: 100; box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+}
+/* ... (lanjutkan dengan sisa CSS SIDEBAR dan OUTPUT yang sudah kita buat) ... */
+.sidebar.show { left: 0; }
+.sidebar-header { padding: 0 20px 20px 20px; border-bottom: 1px solid var(--border-light); margin-bottom: 10px; }
+.sidebar-header h2 { color: var(--primary-blue); margin: 0; }
+.sidebar a { padding: 12px 20px; text-decoration: none; font-size: 16px; color: var(--text-dark); display: block; transition: background 0.2s; border-left: 4px solid transparent; }
+.sidebar a:hover { background-color: var(--bg-light); }
+.sidebar a[href*="/dashboard.html"] { color: var(--primary-blue); font-weight: 600; border-left: 4px solid var(--primary-blue); }
+.overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); z-index: 90; display: none; transition: opacity 0.3s; opacity: 0; }
+.overlay.show { display: block; opacity: 1; }
+
+/* style.css - OUTPUT FINAL DENGAN PADDING LEBIH KECIL */
+
+/* Ganti PADDING DEFAULT: 12px 8px menjadi 10px 8px */
+.stat-item { 
+    text-align: center; 
+    padding: 10px 8px; /* Padding sedikit lebih kecil untuk item standar */
+    border-radius: 8px; 
+    background: var(--bg-light); 
+    transition: background 0.2s; 
+    border: 1px solid var(--border-light); 
+}
+
+/* PENTING: TAMBAHAN UNTUK NET-STAT (Mempersingkat Tinggi) */
+.stat-item.net-stat { 
+    grid-column: span 2; 
+    
+    background: #e9f2fa; 
+    border: 1px solid #c9e2f0; 
+    
+    margin-top: 10px; 
+    /* Padding atas dan bawah dikurangi drastis dari 12px menjadi 8px */
+    padding: 8px 16px; 
+    
+    /* Teks dan ikon mungkin terlalu besar untuk padding 8px */
+    /* Kita juga perlu menyesuaikan ikon dan label di dalam stat-item */
+}
+
+/* Menyesuaikan jarak agar lebih rapat di dalam stat-item yang lebih kecil */
+.stat-icon { font-size: 20px; display: block; margin-bottom: 4px; } /* Ikon lebih kecil, margin bawah berkurang */
+.stat-label { font-size: 11px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; }
+.stat-value { font-size: 16px; font-weight: bold; margin-top: 2px; } /* Margin atas berkurang */
+
+/* result-header-stats tetap sama */
+.result-header-stats { padding: 18px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.icon-sale { color: var(--secondary-green); } 
+.icon-expense { color: var(--danger-red); } 
+.icon-net { color: var(--primary-blue); }
+
+.result-chart-area { padding: 18px 0; border-top: 1px solid var(--border-light); border-bottom: 1px solid var(--border-light); margin: 10px 0; }
+.result-prediction-area { padding: 18px 0; }
+
+#prediction { white-space: pre-wrap; font-size: 14px; background: var(--bg-light); padding: 10px; border-radius: 6px; border-left: 4px solid var(--primary-blue); }
+
+.list-item { padding: 12px 0; border-bottom: 1px solid var(--border-light); cursor: pointer; transition: background 0.1s; font-size: 16px; }
+.list-item:hover { background: var(--bg-light); border-radius: 4px; }
+.list-item:last-child { border-bottom: none; }
+
+
+/* style.css - Tambahan: Pemisah antar Blok Hasil */
+.result-separator {
+    border-bottom: 1px solid var(--border-light);
+    margin: 20px 0; /* Jarak vertikal yang lebih lega */
+}
+
+
+
+
+
+
+
+
+/* style.css - Tambahan untuk History Page (Tampilan List Baru) */
+
+/* 1. Mengubah layout History menjadi satu kolom vertikal */
+/* Terapkan hanya pada layar kecil untuk menjaga tampilan di desktop jika ada */
+@media (max-width: 1000px) {
+    .container {
+        /* Mengatur agar card detail hari muncul di bawah list hari */
+        display: block !important; 
+    }
+}
+
+/* 2. Gaya untuk setiap item daftar hari (Kotak Radius) */
+.list-item {
+    padding: 14px;
+    border-radius: 10px; /* Radius lebih bulat */
+    margin-bottom: 12px;
+    cursor: pointer;
+    background: var(--bg-white); /* Background Putih */
+    border: 1px solid var(--border-light);
+    display: flex; /* Untuk menempatkan teks dan tombol titik tiga */
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.1s, box-shadow 0.2s;
+    position: relative; /* Untuk menu aksi */
+    font-weight: 500;
+}
+.list-item:hover {
+    background: #fcfcfd;
+    box-shadow: 0 4px 8px rgba(44, 62, 80, 0.05);
+}
+.list-item:last-child {
+    border-bottom: 1px solid var(--border-light); /* Jaga border bawah terakhir */
+}
+
+/* 3. Tombol Titik Tiga (Opsi/Menu Aksi) */
+.options-btn {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: var(--text-dark);
+    padding: 4px;
+}
+
+/* 4. Menu Aksi Pop-up */
+.action-menu {
+    position: absolute;
+    top: 40px; /* Turun dari tombol titik tiga */
+    right: 0;
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    z-index: 20;
+    min-width: 120px;
+    display: none;
+}
+.action-menu.show {
+    display: block;
+}
+.action-menu button {
+    display: block;
+    width: 100%;
+    padding: 10px 15px;
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-dark);
+    transition: background 0.1s;
+}
+.action-menu button:hover {
+    background: var(--bg-light);
+}
+.action-menu button.delete {
+    color: var(--danger-red);
+}
+
+/* 5. Kontainer Detail (untuk animasi smooth) */
+#dayDetailContainer {
+    overflow: hidden;
+    transition: max-height 0.4s ease-out; /* Animasi smooth */
+    max-height: 0; /* Awalnya tersembunyi */
+}
+#dayDetailContainer.show {
+    /* Tinggi maksimal yang cukup besar agar konten bisa muncul */
+    max-height: 1000px; 
+}
+
+/* style.css - Tambahan Penting untuk History Page */
+
+/* Gaya untuk detail wrapper yang muncul di bawah item list */
+.detail-wrapper {
+    /* Dimulai dari tersembunyi dengan tinggi nol */
+    max-height: 0; 
+    overflow: hidden;
+    /* Ini adalah properti yang membuat animasi "smooth" */
+    transition: max-height 0.4s ease-out; 
+}
+/* Ketika class 'show' ditambahkan oleh JavaScript, ia akan muncul */
+.detail-wrapper.show {
+    /* Nilai harus lebih besar dari konten detail yang sebenarnya. */
+    max-height: 1500px; 
+}
+
+/* Opsi: Menandai item list yang sedang terbuka */
+.list-item.active {
+    background: var(--bg-light); 
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+/* Opsi: Jaga agar menu aksi tidak menutup detail wrapper */
+.action-menu {
+    /* Tambahkan z-index agar menu aksi berada di atas semua */
+    z-index: 91; 
+}
+
+
+
+/* style.css - Tambahan untuk Modal Edit (Overlay dan Card) */
+
+/* Modal Backdrop */
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 100; /* Lebih tinggi dari overlay (90) */
+    display: none;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+.modal-backdrop.show {
+    display: flex;
+    opacity: 1;
+}
+
+/* Modal Content Card */
+.modal-content {
+    background: var(--bg-white);
+    border-radius: 12px;
+    padding: 20px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh; /* Agar bisa digulir di mobile */
+    overflow-y: auto;
+    transform: translateY(20px);
+    transition: transform 0.3s ease-out;
+}
+.modal-backdrop.show .modal-content {
+    transform: translateY(0);
+}
+
+/* Gaya untuk setiap item transaksi di dalam modal */
+.transaction-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-light);
+}
+.transaction-item:last-child {
+    border-bottom: none;
+}
+.trans-details {
+    flex-grow: 1;
+}
+.trans-details input {
+    width: 100%;
+    margin-top: 5px;
+    font-size: 16px;
+    font-weight: bold;
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    padding: 6px;
+}
+.trans-actions {
+    margin-left: 15px;
+    display: flex;
+    gap: 8px;
+}
+.trans-actions button {
+    padding: 8px 10px;
+    font-size: 14px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+}
+.trans-actions .save-btn {
+    background: var(--primary-blue);
+    color: white;
+}
+.trans-actions .delete-trans-btn {
+    background: var(--danger-red);
+    color: white;
+}
+.trans-label {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+.trans-type.sale { color: var(--secondary-green); font-weight: bold; }
+.trans-type.expense { color: var(--danger-red); font-weight: bold; }

@@ -1,0 +1,868 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>C-Kas</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  
+  <style>
+    /* 1. Gaya untuk Wrapper Lingkaran Hijau */
+    .event-icon-wrapper {
+        position: relative; 
+        width: 30px; 
+        height: 30px;
+        border-radius: 50%;
+        background-color: var(--secondary-green); /* Warna Hijau */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); 
+    }
+    
+    /* 2. Modifikasi Tombol Lonceng (event-btn) */
+    .event-btn {
+        width: 44px;
+        height: 44px;
+        background: none; 
+        border: none;
+        color: var(--bg-white); /* Ikon menjadi putih */
+        font-size: 20px;
+        cursor: pointer;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    /* 3. Penyesuaian Titik Notifikasi (Dot RLS) */
+    .notification-dot {
+        position: absolute;
+        top: 0px; 
+        right: 0px; 
+        width: 8px;
+        height: 8px;
+        background-color: var(--danger-red); 
+        border-radius: 50%;
+        border: 2px solid var(--bg-white); 
+        pointer-events: none;
+        z-index: 1001;
+    }
+
+    /* Gaya untuk badge pengingat yang muncul di sebelah kiri icon lonceng */
+    .reminder-inline-badge {
+        background-color: var(--secondary-green); /* Hijau */
+        color: var(--bg-white);
+        font-size: 11px;
+        font-weight: 500;
+        padding: 3px 8px;
+        border-radius: 12px;
+        margin-right: -8px; /* Jarak dari lonceng */
+        white-space: nowrap; 
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: none; /* Default hidden */
+        cursor: pointer; /* Menandakan bisa diklik */
+    }
+
+    /* Gaya untuk pop-up pengingat */
+    .reminder-popup {
+        position: absolute;
+        top: 50px; 
+        right: 0;
+        width: 250px;
+        background: var(--bg-white);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
+        padding: 15px;
+        border-left: 5px solid var(--primary-blue);
+        
+        opacity: 0;
+        visibility: hidden;
+        transform: scale(0.9);
+        transform-origin: top right;
+        transition: opacity 0.2s, visibility 0.2s, transform 0.2s;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .reminder-popup.show {
+        opacity: 1;
+        visibility: visible;
+        transform: scale(1);
+    }
+    
+    /* Gaya untuk setiap item pengingat di pop-up */
+    .reminder-item {
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border-light);
+        font-size: 14px;
+        display: flex;
+        align-items: center; 
+    }
+    /* Konten teks agar tetap di atas-bawah dan mengambil sisa ruang */
+    .reminder-item > div {
+        flex-grow: 1; 
+        display: flex;
+        flex-direction: column;
+    }
+    .reminder-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    .reminder-date-label {
+        font-weight: bold;
+        color: var(--primary-blue);
+        font-size: 12px;
+        margin-bottom: 2px;
+    }
+    .reminder-text-detail {
+        color: var(--text-dark);
+        font-size: 14px;
+    }
+
+    /* Gaya untuk Tombol Hapus Pengingat */
+    .delete-reminder-btn {
+        background: none;
+        border: none;
+        color: var(--danger-red);
+        font-size: 16px;
+        cursor: pointer;
+        padding: 0 0 0 10px; 
+        transition: color 0.1s;
+        flex-shrink: 0; 
+    }
+    .delete-reminder-btn:hover {
+        color: #c0392b; 
+    }
+    
+  </style>
+</head>
+
+<body>
+    <div id="sidebar" class="sidebar">
+  <div class="sidebar-header">
+    <h2>C-Kas</h2>
+  </div>
+  <a href="/dashboard.html">Dashboard</a>
+  <a href="/history.html">History</a>
+  <a id="logoutSidebar">Logout</a>
+</div>
+
+<div id="overlay" class="overlay"></div>
+<div class="topbar">
+  <button id="menuBtn" class="menu-btn"><i class="fa-solid fa-bars"></i></button>
+  
+  <div class="header-center">
+    <span class="logo-placeholder"><i class="fa-solid fa-calculator"></i></span>
+    <span class="top-title">C-Kas</span>
+  </div>
+  
+  <div style="display: flex; align-items: center;"> 
+    <span id="nextReminderText" class="reminder-inline-badge"></span> 
+    
+    <div id="eventWrapper" class="event-icon-wrapper"> 
+        <button id="eventBtn" class="event-btn"><i class="fa-regular fa-bell"></i></button> 
+        
+        <div id="notificationDot" class="notification-dot hidden"></div> 
+        
+        <div id="reminderPopup" class="reminder-popup">
+            <h4 style="margin-top: 0; margin-bottom: 10px; color: var(--text-dark);">Pengingat Mendatang</h4>
+            <div id="reminderContent"></div>
+            <button id="addReminderBtn" class="btn primary" style="width: 100%; margin-top: 10px; padding: 8px;"><i class="fa-solid fa-plus"></i> Tambah Pengingat</button>
+        </div>
+    </div>
+  </div>
+</div>
+
+
+  <main class="mobile-container">
+    
+    <div id="inputArea" class="seamless-input-wrapper">
+        <input id="salesInput" type="number" 
+               placeholder="Penjualan Hari Ini (Rp)" 
+               style="margin-bottom: 20px;" />
+
+        <input id="expenseInput" type="number" 
+               placeholder="Pengeluaran Hari Ini (Rp)" 
+               style="margin-bottom: 40px;" />
+
+        <div class="row">
+            <button id="saveBtn" class="btn primary round-btn"><i class="fa-solid fa-check"></i></button>
+        </div>
+
+        <p id="msg" class="msg" style="text-align: center; margin-top: 15px;"></p>
+    </div>
+    
+
+
+    <div id="resultSection" class="hidden card">
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h2 style="margin-top: 0; margin-bottom: 0;">Ringkasan Harian & Prediksi</h2>
+        <button id="editTodayBtn" class="btn primary" style="padding: 6px 10px; font-size: 14px; background: var(--text-muted);"><i class="fa-solid fa-pencil"></i> Edit</button>
+      </div>
+
+      <h3 style="margin-top: 0; color: var(--text-dark);">Statistik Hari Ini</h3>
+      <div class="result-header-stats">
+        
+       <div class="stat-item">
+          <span class="stat-icon icon-sale"><i class="fa-solid fa-sack-dollar"></i></span> 
+          <div class="stat-label">Penjualan</div>
+          <div id="todaySales" class="stat-value">Rp.0</div>
+        </div>
+
+        <div class="stat-item">
+          <span class="stat-icon icon-expense"><i class="fa-solid fa-money-bill-transfer"></i></span> 
+          <div class="stat-label">Pengeluaran</div>
+          <div id="todayExpenses" class="stat-value">Rp.0</div>
+        </div>
+
+        <div class="stat-item net-stat"> <span class="stat-icon icon-net"><i class="fa-solid fa-chart-line"></i></span>
+          <div class="stat-label">Total Bersih</div>
+          <div id="todayNet" class="stat-value">Rp.0</div>
+        </div>
+
+      </div>
+      
+      <div class="result-separator"></div>
+
+      <div class="result-chart-area" style="padding: 0; margin: 0;">
+        <h3 style="margin-top: 0;">Penjualan Minggu Ini</h3>
+        <canvas id="weekChart" height="100"></canvas>
+      </div>
+
+      <div class="result-separator"></div>
+
+      <div class="result-prediction-area" style="padding: 0; margin: 0;">
+        <h3 style="margin-top: 0;">Prediksi Bahan Baku</h3>
+        <pre id="prediction"></pre>
+      </div>
+
+    </div>
+
+  </main>
+
+<div id="addReminderModal" class="modal-backdrop">
+    <div class="modal-content">
+        <h2>Tambah Pengingat Baru</h2>
+        
+        <label>Tanggal Acara/Pengingat
+            <input type="date" id="reminderDateInput" required/>
+        </label>
+        <label>Detail Acara/Pengingat
+            <input type="text" id="reminderTextInput" placeholder="Contoh: Orientasi Mahasiswa" required/>
+        </label>
+        
+        <p id="reminderModalStatus" class="msg muted" style="margin-top: 10px;"></p>
+
+        <div style="margin-top: 20px; display: flex; gap: 10px;">
+            <button id="saveReminderBtn" class="btn primary" style="flex-grow: 1;"><i class="fa-solid fa-save"></i> Simpan Pengingat</button>
+            <button id="closeAddReminderModalBtn" class="btn" style="background: var(--danger-red); color: white;"><i class="fa-solid fa-times"></i> Batal</button>
+        </div>
+    </div>
+</div>
+
+<div id="editTransactionModal" class="modal-backdrop">
+    <div class="modal-content">
+        <h2>Edit Total Transaksi Hari Ini</h2>
+        
+        <div id="editTransactionContent">
+            <label>Total Penjualan Baru
+                <input type="number" id="editSalesInput" placeholder="Total Penjualan" required/>
+            </label>
+            <label>Total Pengeluaran Baru
+                <input type="number" id="editExpenseInput" placeholder="Total Pengeluaran" required/>
+            </label>
+            
+            <p class="muted" style="margin-top: 15px; font-size: 12px; color: var(--danger-red);">
+                PERHATIAN: Menyimpan akan menghapus semua catatan transaksi individu hari ini dan menggantinya dengan total baru ini.
+            </p>
+        </div>
+        
+        <p id="editModalStatus" class="msg muted" style="margin-top: 10px;"></p>
+
+        <div style="margin-top: 20px; display: flex; gap: 10px;">
+            <button id="saveEditTotalsBtn" class="btn primary" style="flex-grow: 1;"><i class="fa-solid fa-save"></i> Simpan Perubahan</button>
+            <button id="closeEditModalBtn" class="btn" style="background: var(--danger-red); color: white;"><i class="fa-solid fa-times"></i> Batal</button>
+        </div>
+    </div>
+</div>
+<script type="module">
+    import { supabase } from './supabase.js';
+
+    const el = (id) => document.getElementById(id);
+    let user;
+    let chart; 
+
+    // Helper untuk memformat tanggal ke format Indonesia (DD/MM/YYYY)
+    const formatDate = (date) => date.toLocaleDateString("id-ID");
+    
+    // Helper: Format tanggal ISO ke DD/Bulan/YYYY
+    const formatIsoToIndo = (isoDate) => {
+        const date = new Date(isoDate + 'T00:00:00'); 
+        return date.toLocaleDateString("id-ID", { day: '2-digit', month: 'short', year: 'numeric' });
+    };
+
+    // Helper: Format tanggal ISO ke label ("Hari Ini", "Besok", atau DD/MM)
+    function getDateLabel(isoDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+
+        const todayISO = today.toISOString().split('T')[0];
+        const tomorrowISO = tomorrow.toISOString().split('T')[0];
+
+        if (isoDate === todayISO) {
+            return "Hari Ini";
+        } else if (isoDate === tomorrowISO) {
+            return "Besok";
+        } else {
+            // Format DD/MM
+            const targetDate = new Date(isoDate + 'T00:00:00'); 
+            return targetDate.toLocaleDateString("id-ID", { day: '2-digit', month: '2-digit' });
+        }
+    }
+
+    // Fungsi mendapatkan rentang waktu hari ini
+    function getTodayRange() {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayEnd = new Date(today);
+        todayEnd.setHours(23, 59, 59, 999);
+        return { 
+            start: today.toISOString(), 
+            end: todayEnd.toISOString() 
+        };
+    }
+
+
+    // FUNGSI INTI: Memeriksa dan Memuat Data Dashboard
+    async function checkAndLoadData() {
+        const { start, end } = getTodayRange();
+        
+        const { count } = await supabase
+            .from("transactions")
+            .select("id", { count: 'exact', head: true })
+            .eq("user_id", user.id)
+            .gte("created_at", start)
+            .lte("created_at", end);
+
+        if (count > 0) {
+            el("inputArea").style.display = 'none'; 
+            el("resultSection").style.display = 'block'; // FIX: Pastikan ditampilkan
+            el("resultSection").classList.remove("hidden");
+            el("resultSection").classList.add("show");
+            
+            await loadDashboardData();
+        } else {
+            el("inputArea").style.display = 'flex'; 
+            el("resultSection").style.display = 'none'; // FIX: Pastikan disembunyikan
+            el("resultSection").classList.add("hidden");
+            el("resultSection").classList.remove("show");
+            
+            // Reset nilai visual
+            el("todaySales").textContent = 'Rp.0';
+            el("todayExpenses").textContent = 'Rp.0';
+            el("todayNet").textContent = 'Rp.0';
+            el("prediction").textContent = 'Data hari ini belum tersedia. Silakan input transaksi untuk hari ini.';
+            
+            if (chart) chart.destroy(); 
+            chart = null; // Memastikan grafik di-reset
+        }
+    }
+
+
+    // FUNGSI UNTUK MEMUAT DATA HARI INI DAN GRAFIK
+    async function loadDashboardData() {
+        const { start, end } = getTodayRange();
+
+        const { data: todayData } = await supabase
+            .from("transactions")
+            .select("type, amount")
+            .eq("user_id", user.id)
+            .gte("created_at", start)
+            .lte("created_at", end);
+
+        let sales = 0;
+        let expenses = 0;
+        (todayData || []).forEach(r => {
+            if (r.type === "sale") sales += Number(r.amount);
+            if (r.type === "expense") expenses += Number(r.amount);
+        });
+        const net = sales - expenses;
+
+        el("todaySales").textContent = `Rp.${sales.toLocaleString("id-ID")}`;
+        el("todayExpenses").textContent = `Rp.${expenses.toLocaleString("id-ID")}`;
+        el("todayNet").textContent = `Rp.${net.toLocaleString("id-ID")}`;
+        
+        const netStatEl = el("todayNet").closest('.net-stat');
+        if (netStatEl) {
+            netStatEl.style.backgroundColor = net >= 0 ? '#e9f2fa' : '#fce9e9'; 
+            netStatEl.style.borderColor = net >= 0 ? '#c9e2f0' : '#f0c9c9';
+        }
+
+        await loadWeekChart(sales);
+    }
+
+
+    // FUNGSI UNTUK MEMUAT GRAFIK MINGGUAN 
+    async function loadWeekChart(todaySalesValue = 0) {
+        const end = new Date();
+        end.setHours(23, 59, 59, 999);
+        const start = new Date(end);
+        start.setDate(start.getDate() - 6);
+        start.setHours(0, 0, 0, 0);
+        
+        const { data } = await supabase.from("transactions")
+            .select("created_at, type, amount")
+            .eq("user_id", user.id)
+            .gte("created_at", start.toISOString())
+            .lte("created_at", end.toISOString());
+
+        const labels = [];
+        const values = [];
+        const salesByDay = new Map();
+
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(start);
+            d.setDate(start.getDate() + i);
+            
+            const dateKey = d.toISOString().split('T')[0];
+            salesByDay.set(dateKey, 0);
+            
+            labels.push(d.toLocaleDateString('id-ID', { weekday: 'short' }));
+        }
+
+        (data || []).forEach(r => {
+            if (r.type === "sale") {
+                const transDate = new Date(r.created_at);
+                const dateKey = transDate.toISOString().split('T')[0]; 
+
+                if (salesByDay.has(dateKey)) {
+                    salesByDay.set(dateKey, salesByDay.get(dateKey) + Number(r.amount));
+                }
+            }
+        });
+        
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(start);
+            d.setDate(start.getDate() + i);
+            const dateKey = d.toISOString().split('T')[0];
+            values.push(salesByDay.get(dateKey) || 0); 
+        }
+
+        const ctx = el("weekChart").getContext("2d");
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+            type: "bar",
+            data: { 
+                labels, 
+                datasets: [{ 
+                    data: values, 
+                    label: "Penjualan (Rp)", 
+                    backgroundColor: '#0faa48'
+                }] 
+            },
+            options: { plugins: { legend: { display:false } }, scales: { y: { beginAtZero: true } } }
+        });
+
+        const currentSales = salesByDay.get(new Date().toISOString().split('T')[0]) || 0;
+        const pred = Math.round(currentSales * 0.1);
+        el("prediction").textContent =
+            `Penjualan Hari Ini: Rp.${currentSales.toLocaleString("id-ID")}\n` +
+            `Prediksi biaya bahan baku (10%): Rp.${pred.toLocaleString("id-ID")}`;
+    }
+
+
+    // FUNGSI PENTING: saveTransaction
+    el("saveBtn").addEventListener("click", async () => {
+        const salesInput = Number(el("salesInput").value);
+        const expenseInput = Number(el("expenseInput").value);
+        const msg = el("msg");
+        
+        if (salesInput <= 0 && expenseInput <= 0) {
+            msg.textContent = "Masukkan minimal salah satu nilai Penjualan atau Pengeluaran.";
+            return;
+        }
+
+        const salesRecords = salesInput > 0 ? [{ type: "sale", amount: salesInput, user_id: user.id }] : [];
+        const expenseRecords = expenseInput > 0 ? [{ type: "expense", amount: expenseInput, user_id: user.id }] : [];
+
+        const { error } = await supabase.from("transactions").insert([...salesRecords, ...expenseRecords]);
+
+        if (error) {
+            msg.textContent = `Gagal menyimpan: ${error.message}`;
+            return;
+        }
+        
+        el("salesInput").value = '';
+        el("expenseInput").value = '';
+        msg.textContent = 'Data berhasil disimpan!';
+
+        await checkAndLoadData();
+        await checkAndDisplayReminder(); 
+        
+        if (typeof loadHistory === 'function') loadHistory(); 
+    });
+
+
+    async function loadHistory() {
+        // Fungsi ini kosong, bisa diisi jika dibutuhkan
+    }
+
+    /* ====================================
+       FUNGSI PENGINGAT (REMINDER)
+       ==================================== */
+
+    async function deleteReminder(reminderId) {
+        if (!confirm("Anda yakin ingin menghapus pengingat ini?")) return;
+
+        const { error } = await supabase
+            .from('reminders')
+            .delete()
+            .eq('id', reminderId);
+
+        if (error) {
+            alert("Gagal menghapus pengingat: " + error.message);
+            return;
+        }
+
+        await checkAndDisplayReminder(); 
+    }
+    
+    async function checkAndDisplayReminder() {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayISO = today.toISOString().split('T')[0]; 
+
+        const { data: reminders, error } = await supabase
+            .from('reminders')
+            .select('id, text, reminder_date')
+            .eq('user_id', user.id)
+            .gte('reminder_date', todayISO) 
+            .order('reminder_date', { ascending: true }) 
+            .limit(5); 
+
+        const dot = el('notificationDot');
+        const content = el('reminderContent');
+        const nextReminderTextEl = el('nextReminderText');
+        
+        if (error) {
+            console.error("Error fetching reminders:", error);
+            dot.classList.add('hidden');
+            nextReminderTextEl.style.display = 'none';
+            return;
+        }
+
+        if (reminders && reminders.length > 0) {
+            // --- 1. SET INLINE BADGE DI TOPBAR ---
+            const nearestReminder = reminders[0];
+            const dateLabel = getDateLabel(nearestReminder.reminder_date);
+            
+            const MAX_LENGTH = 15;
+            const shortText = nearestReminder.text.length > MAX_LENGTH 
+                              ? nearestReminder.text.substring(0, MAX_LENGTH - 3) + '...'
+                              : nearestReminder.text;
+                              
+            nextReminderTextEl.textContent = `${dateLabel} ${shortText}`;
+            nextReminderTextEl.style.display = 'inline-block';
+            
+            dot.classList.remove('hidden'); 
+            
+            // --- 2. SET POP-UP CONTENT (Tambahkan Tombol Hapus) ---
+            let htmlContent = '';
+            reminders.forEach(r => {
+                const dateStr = formatIsoToIndo(r.reminder_date);
+                const dateLabelDetail = getDateLabel(r.reminder_date);
+                
+                htmlContent += `
+                    <div class="reminder-item" data-id="${r.id}">
+                        <div style="flex-grow: 1; display: flex; flex-direction: column;">
+                            <span class="reminder-date-label">${dateLabelDetail} (${dateStr})</span>
+                            <span class="reminder-text-detail">${r.text}</span>
+                        </div>
+                        <button class="delete-reminder-btn" data-id="${r.id}"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+                `;
+            });
+            
+            content.innerHTML = htmlContent;
+
+            // --- EVENT LISTENER UNTUK TOMBOL HAPUS ---
+            document.querySelectorAll('.delete-reminder-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation(); 
+                    const reminderId = e.currentTarget.getAttribute('data-id');
+                    deleteReminder(reminderId);
+                });
+            });
+
+
+        } else {
+            dot.classList.add('hidden');
+            nextReminderTextEl.style.display = 'none';
+            content.innerHTML = `<p style="margin: 0; font-style: italic; color: var(--text-muted);">Belum ada pengingat mendatang.</p>`;
+        }
+    }
+
+    async function saveNewReminder() {
+        const btn = el('saveReminderBtn');
+        const originalText = btn.innerHTML;
+        const modalStatus = el('reminderModalStatus');
+        
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+        btn.setAttribute('disabled', 'disabled');
+        modalStatus.style.display = 'block';
+        modalStatus.textContent = 'Menyimpan pengingat...';
+
+        const dateInput = el('reminderDateInput').value;
+        const textInput = el('reminderTextInput').value.trim();
+
+        if (!dateInput || !textInput) {
+            modalStatus.textContent = 'Semua kolom harus diisi.';
+            btn.innerHTML = originalText;
+            btn.removeAttribute('disabled');
+            return;
+        }
+        
+        try {
+            const { error } = await supabase
+                .from('reminders')
+                .insert({ 
+                    user_id: user.id, 
+                    text: textInput, 
+                    reminder_date: dateInput 
+                });
+                
+            if (error) throw error;
+            
+            modalStatus.textContent = 'Pengingat berhasil disimpan!';
+            
+            btn.innerHTML = originalText;
+            btn.removeAttribute('disabled');
+            
+            setTimeout(async () => {
+                el('addReminderModal').classList.remove('show');
+                await checkAndDisplayReminder(); 
+            }, 800);
+
+        } catch (e) {
+            modalStatus.textContent = 'Gagal menyimpan pengingat: ' + e.message;
+            btn.innerHTML = originalText;
+            btn.removeAttribute('disabled');
+        }
+    }
+
+
+    /* ====================================
+       FUNGSI EDIT TOTAL TRANSAKSI HARIAN
+       ==================================== */
+    
+    // Fungsi untuk memuat total penjualan dan pengeluaran ke modal edit
+    async function loadEditData() {
+        const { start, end } = getTodayRange();
+        const modalStatus = el('editModalStatus');
+        modalStatus.textContent = 'Memuat data...';
+
+        const { data: todayData, error } = await supabase
+            .from("transactions")
+            .select("type, amount")
+            .eq("user_id", user.id)
+            .gte("created_at", start)
+            .lte("created_at", end);
+
+        if (error) {
+             modalStatus.textContent = `Gagal memuat data: ${error.message}`;
+             el("editSalesInput").value = 0;
+             el("editExpenseInput").value = 0;
+             return;
+        }
+        
+        let sales = 0;
+        let expenses = 0;
+        (todayData || []).forEach(r => {
+            if (r.type === "sale") sales += Number(r.amount);
+            if (r.type === "expense") expenses += Number(r.amount);
+        });
+
+        el("editSalesInput").value = sales;
+        el("editExpenseInput").value = expenses;
+        modalStatus.textContent = 'Data siap diedit.';
+    }
+
+    // Fungsi untuk menyimpan total yang sudah diedit
+    async function saveEditedTotals() {
+        const btn = el('saveEditTotalsBtn');
+        const originalText = btn.innerHTML;
+        const modalStatus = el('editModalStatus');
+        
+        const newSales = Number(el("editSalesInput").value) || 0;
+        const newExpenses = Number(el("editExpenseInput").value) || 0;
+
+        // Validasi
+        if (newSales < 0 || newExpenses < 0) {
+            modalStatus.textContent = 'Penjualan dan Pengeluaran tidak boleh negatif.';
+            return;
+        }
+        if (newSales === 0 && newExpenses === 0) {
+            // Jika keduanya nol, anggap sebagai penghapusan data hari itu
+            if (!confirm("Anda memasukkan nilai nol untuk keduanya. Semua transaksi hari ini akan dihapus. Lanjutkan?")) return;
+        }
+
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+        btn.setAttribute('disabled', 'disabled');
+        modalStatus.textContent = 'Memproses data...';
+        
+        const { start, end } = getTodayRange();
+
+        try {
+            // 1. HAPUS SEMUA TRANSAKSI HARI INI
+            const { error: deleteError } = await supabase
+                .from('transactions')
+                .delete()
+                .eq('user_id', user.id)
+                .gte('created_at', start)
+                .lte('created_at', end);
+
+            if (deleteError) throw deleteError;
+
+            // 2. INSERT TRANSAKSI BARU (TOTAL)
+            const newRecords = [];
+            if (newSales > 0) {
+                newRecords.push({ type: "sale", amount: newSales, user_id: user.id });
+            }
+            if (newExpenses > 0) {
+                newRecords.push({ type: "expense", amount: newExpenses, user_id: user.id });
+            }
+
+            if (newRecords.length > 0) {
+                 const { error: insertError } = await supabase.from("transactions").insert(newRecords);
+                 if (insertError) throw insertError;
+            }
+            
+            modalStatus.textContent = 'Transaksi harian berhasil diperbarui!';
+            
+            // 3. MUAT ULANG DASHBOARD - checkAndLoadData akan menentukan apakah akan menampilkan input atau ringkasan
+            await checkAndLoadData();
+            
+            setTimeout(() => {
+                el('editTransactionModal').classList.remove('show');
+            }, 800);
+
+        } catch (e) {
+            modalStatus.textContent = 'Gagal menyimpan perubahan: ' + e.message;
+        } finally {
+            btn.innerHTML = originalText;
+            btn.removeAttribute('disabled');
+        }
+    }
+
+
+    // EVENT LISTENERS PENGINGAT
+    
+    el("eventBtn").addEventListener("click", (e) => {
+        e.stopPropagation(); 
+        const popup = el("reminderPopup");
+        
+        if (popup.classList.contains('show')) {
+            popup.classList.remove('show');
+        } else {
+            el('notificationDot').classList.add('hidden');
+            popup.classList.add('show');
+        }
+    });
+    
+    el("nextReminderText").addEventListener("click", () => {
+        el('eventBtn').click(); 
+    });
+
+    el("addReminderBtn")?.addEventListener("click", () => {
+        el('reminderPopup').classList.remove('show'); 
+        el('addReminderModal').classList.add('show'); 
+        el('reminderModalStatus').textContent = ''; 
+        
+        const today = new Date();
+        const isoDate = today.toISOString().split('T')[0];
+        el('reminderDateInput').value = isoDate;
+        el('reminderTextInput').value = '';
+    });
+
+    el("closeAddReminderModalBtn")?.addEventListener("click", () => {
+        el('addReminderModal').classList.remove('show');
+    });
+
+    el("saveReminderBtn")?.addEventListener("click", saveNewReminder);
+
+    // Event Listener untuk Tombol Edit di Ringkasan
+    el("editTodayBtn").addEventListener("click", () => {
+        el('editTransactionModal').classList.add('show');
+        loadEditData(); // Memuat total penjualan/pengeluaran
+    });
+    
+    // Event Listener untuk tombol Simpan di modal edit
+    el("saveEditTotalsBtn").addEventListener("click", saveEditedTotals);
+
+    // Event Listener untuk menutup modal edit
+    el("closeEditModalBtn").addEventListener("click", () => {
+        el('editTransactionModal').classList.remove('show');
+    });
+
+
+    // Tutup pop-up jika user klik di tempat lain
+    document.addEventListener('click', (event) => {
+        const eventBtn = el('eventBtn');
+        const popup = el('reminderPopup');
+        const nextReminderTextEl = el('nextReminderText');
+        const eventWrapper = el('eventWrapper'); 
+        
+        if (popup && !eventBtn.contains(event.target) && !popup.contains(event.target) && !nextReminderTextEl.contains(event.target) && !eventWrapper.contains(event.target)) {
+            popup.classList.remove('show');
+        }
+    });
+    
+    // INISIALISASI
+    (async function init() {
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        if (!currentUser) {
+            window.location.href = '/index.html';
+            return;
+        }
+        user = currentUser;
+
+        await checkAndLoadData();
+        await loadHistory();
+        await checkAndDisplayReminder(); 
+    })();
+
+
+    // Sidebar Controls
+    const sidebar = el("sidebar");
+    const overlay = el("overlay");
+    const menuBtn = el("menuBtn");
+    const logoutSidebar = el("logoutSidebar");
+
+    menuBtn.addEventListener("click", () => {
+      sidebar.classList.add("show");
+      overlay.classList.add("show");
+    });
+
+    overlay.addEventListener("click", () => {
+      sidebar.classList.remove("show");
+      overlay.classList.remove("show");
+    });
+
+    logoutSidebar.addEventListener("click", async () => {
+      await supabase.auth.signOut();
+      window.location.href = '/index.html';
+    });
+
+</script>
+
+</body>
+</html>
