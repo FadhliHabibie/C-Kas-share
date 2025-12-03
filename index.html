@@ -1,14 +1,16 @@
 <!doctype html>
 <html lang="id">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Login - Pencatatan UMKM</title>
   <link rel="stylesheet" href="login.css">
 </head>
+
 <body>
   <main class="container">
-    <div class="card auth-card">
+    <div class="card auth-card card-transition card-show">
       <h1 id="title">Login</h1>
 
       <label>Email
@@ -41,19 +43,31 @@
     let mode = 'login'; // or 'register'
 
     toggleBtn.addEventListener('click', () => {
-      if (mode === 'login') {
-        mode = 'register';
-        title.textContent = 'Daftar Akun';
-        actionBtn.textContent = 'Daftar';
-        toggleBtn.textContent = 'Ke Login';
+      const card = document.querySelector('.auth-card');
+
+      card.classList.remove('card-show');
+      card.classList.add('card-hide');
+
+      setTimeout(() => {
+        if (mode === 'login') {
+          mode = 'register';
+          title.textContent = 'Daftar Akun';
+          actionBtn.textContent = 'Daftar';
+          toggleBtn.textContent = 'Ke Login';
+        } else {
+          mode = 'login';
+          title.textContent = 'Login';
+          actionBtn.textContent = 'Login';
+          toggleBtn.textContent = 'Buat Akun';
+        }
+
         msg.textContent = '';
-      } else {
-        mode = 'login';
-        title.textContent = 'Login';
-        actionBtn.textContent = 'Login';
-        toggleBtn.textContent = 'Buat Akun';
-        msg.textContent = '';
-      }
+
+        requestAnimationFrame(() => {
+          card.classList.remove('card-hide');
+          card.classList.add('card-show');
+        });
+      }, 250);
     });
 
     actionBtn.addEventListener('click', async () => {
@@ -96,4 +110,5 @@
     })();
   </script>
 </body>
+
 </html>
