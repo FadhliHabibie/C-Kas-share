@@ -449,3 +449,8 @@ input::placeholder {
 }
 .trans-type.sale { color: var(--secondary-green); font-weight: bold; }
 .trans-type.expense { color: var(--danger-red); font-weight: bold; }
+
+
+body.is-loading #inputArea {
+    display: none !important; 
+}

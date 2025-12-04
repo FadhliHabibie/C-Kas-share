@@ -71,11 +71,22 @@
     let existingSalesTransactions = [];
     let existingExpenseTransactions = [];
 
+    // --- HELPER FUNGSI WAKTU BARU ---
+    // Mendapatkan tanggal lokal dalam format YYYY-MM-DD
+    function getLocalDateKey(date) {
+        // Menggunakan 'en-CA' menghasilkan YYYY-MM-DD yang stabil 
+        // berdasarkan zona waktu lokal pengguna (WIB/WITA/WIT).
+        return date.toLocaleDateString('en-CA');
+    }
+
     // Helper untuk memformat tanggal: DD/MM/YYYY
     const parseIndoDate = (dateStr) => {
         const [day, month, year] = dateStr.split('/');
         return new Date(year, month - 1, day);
     };
+    
+    // Helper untuk ID (diperlukan oleh fungsi lain)
+    const el = (id) => document.getElementById(id); 
 
     // Fungsi untuk menutup semua menu aksi
     const closeAllActionMenus = () => {
@@ -165,6 +176,7 @@
         const start = new Date(dateObj);
         const end   = new Date(dateObj);
 
+        // Pengaturan batas jam ini sudah benar karena menggunakan objek Date lokal
         start.setHours(0,0,0,0);
         end.setHours(23,59,59,999);
         
@@ -202,7 +214,8 @@
         // 4. TAMPILKAN GRAFIK MINGGUAN
         const chartCanvas = detailCard.querySelector('#weekChartDetail');
         if (chartCanvas) {
-            await loadWeeklyHistory(dateObj, chartCanvas);
+            // Memastikan data chart menggunakan logika waktu lokal yang baru
+            await loadWeeklyHistory(dateObj, chartCanvas); 
         }
     }
 
@@ -250,19 +263,21 @@
     }
 
 
-    // FUNGSI UNTUK MEMUAT GRAFIK MINGGUAN
+    // FUNGSI UNTUK MEMUAT GRAFIK MINGGUAN (Telah diubah untuk Waktu Lokal)
     async function loadWeeklyHistory(selectedDateObj, chartCanvas) {
+        // 1. Tentukan rentang minggu (Senin - Minggu)
         const dayOfWeek = selectedDateObj.getDay(); 
         const daysToStartOfWeek = dayOfWeek === 0 ? 6 : dayOfWeek - 1; 
 
         const start = new Date(selectedDateObj); 
         start.setDate(selectedDateObj.getDate() - daysToStartOfWeek);
-        start.setHours(0, 0, 0, 0); 
+        start.setHours(0, 0, 0, 0); // Awal Hari Senin Lokal
 
         const end = new Date(start); 
         end.setDate(start.getDate() + 6); 
-        end.setHours(23, 59, 59, 999); 
+        end.setHours(23, 59, 59, 999); // Akhir Hari Minggu Lokal
 
+        // 2. Ambil data dari Supabase
         const { data } = await supabase.from("transactions")
             .select("created_at, type, amount")
             .eq("user_id", user.id)
@@ -272,21 +287,28 @@
         const labels = [];
         const values = [];
         const salesByDay = new Map();
+        const localDateKeys = []; // Simpan kunci tanggal lokal
 
+        // 3. Inisialisasi map dengan 7 hari lokal (Senin - Minggu)
         for (let i = 0; i < 7; i++) {
             const d = new Date(start);
             d.setDate(start.getDate() + i);
             
-            const dateKey = d.toISOString().split('T')[0];
+            // Perbaikan 1: Gunakan kunci tanggal lokal (YYYY-MM-DD)
+            const dateKey = getLocalDateKey(d); 
             salesByDay.set(dateKey, 0);
+            localDateKeys.push(dateKey); // Simpan kunci tanggal lokal
             
             labels.push(d.toLocaleDateString('id-ID', { weekday: 'short' }));
         }
         
+        // 4. Isi data penjualan
         (data || []).forEach(r => {
             if (r.type === "sale") {
                 const transDate = new Date(r.created_at);
-                const dateKey = transDate.toISOString().split('T')[0]; 
+                
+                // Perbaikan 2: Ambil kunci tanggal LOKAL dari waktu transaksi
+                const dateKey = getLocalDateKey(transDate); 
 
                 if (salesByDay.has(dateKey)) {
                     salesByDay.set(dateKey, salesByDay.get(dateKey) + Number(r.amount));
@@ -294,10 +316,9 @@
             }
         });
 
+        // 5. Susun nilai sesuai urutan hari (Senin-Minggu)
         for (let i = 0; i < 7; i++) {
-            const d = new Date(start);
-            d.setDate(start.getDate() + i);
-            const dateKey = d.toISOString().split('T')[0];
+            const dateKey = localDateKeys[i];
             values.push(salesByDay.get(dateKey) || 0); 
         }
 
@@ -520,7 +541,7 @@
     };
     
     /* ====================================
-       LOAD HISTORY UTAMA
+       LOAD HISTORY UTAMA (Telah diubah untuk Waktu Lokal)
        ==================================== */
 
     // LOAD HISTORY
@@ -546,8 +567,10 @@
         const dates = data.map(r => new Date(r.created_at));
         const uniqueDates = new Set();
         
+        // Perbaikan: Pastikan pengelompokan menggunakan format tanggal LOKAL 
         dates.forEach(d => {
-            const dateStr = d.toLocaleDateString("id-ID");
+            // Format LOKAL (DD/MM/YYYY)
+            const dateStr = d.toLocaleDateString("id-ID"); 
             uniqueDates.add(dateStr);
         });
         
@@ -610,7 +633,6 @@
     })();
 
     // Sidebar Controls
-    const el = (id) => document.getElementById(id); 
     const sidebar = el("sidebar");
     const overlay = el("overlay");
     const menuBtn = el("menuBtn");

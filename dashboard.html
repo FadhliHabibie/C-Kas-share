@@ -143,7 +143,7 @@
   </style>
 </head>
 
-<body>
+<body class="is-loading"> 
     <div id="sidebar" class="sidebar">
   <div class="sidebar-header">
     <h2>C-Kas</h2>
@@ -232,7 +232,7 @@
       <div class="result-separator"></div>
 
       <div class="result-chart-area" style="padding: 0; margin: 0;">
-        <h3 style="margin-top: 0;">Penjualan Minggu Ini</h3>
+        <h3 id="weekChartTitle" style="margin-top: 0;">Penjualan Minggu Ini</h3>
         <canvas id="weekChart" height="100"></canvas>
       </div>
 
@@ -252,8 +252,7 @@
         <h2>Tambah Pengingat Baru</h2>
         
         <label>Tanggal Acara/Pengingat
-            <input type="date" id="reminderDateInput" required/>
-        </label>
+            <input type="date" id="reminderDateInput" required min=""/> </label>
         <label>Detail Acara/Pengingat
             <input type="text" id="reminderTextInput" placeholder="Contoh: Orientasi Mahasiswa" required/>
         </label>
@@ -307,44 +306,68 @@
         const date = new Date(isoDate + 'T00:00:00'); 
         return date.toLocaleDateString("id-ID", { day: '2-digit', month: 'short', year: 'numeric' });
     };
+    
+    // Helper: Mendapatkan tanggal hari ini dalam format YYYY-MM-DD
+    function getTodayIsoDateString() {
+        const today = new Date();
+        // Menggunakan toISOString().split('T')[0] untuk mendapatkan 'YYYY-MM-DD' 
+        // dalam konteks UTC, yang aman untuk digunakan sebagai min attribute.
+        // Namun, agar konsisten dengan zona waktu lokal, kita bisa menggunakan metode lokal:
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
 
     // Helper: Format tanggal ISO ke label ("Hari Ini", "Besok", atau DD/MM)
     function getDateLabel(isoDate) {
+        // Objek Date untuk Hari Ini (dengan waktu disetel ke 00:00:00 lokal)
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(today.getDate() + 1);
+        today.setHours(0, 0, 0, 0); 
 
-        const todayISO = today.toISOString().split('T')[0];
-        const tomorrowISO = tomorrow.toISOString().split('T')[0];
+        // Objek Date untuk Tanggal Pengingat (dengan waktu disetel ke 00:00:00 lokal)
+        const reminderDate = new Date(isoDate + 'T00:00:00'); 
+        
+        // Ambil timestamp tengah malam lokal
+        const todayTimestamp = today.getTime();
+        const reminderTimestamp = reminderDate.getTime();
 
-        if (isoDate === todayISO) {
+        // Perbedaan dalam milidetik
+        const diff = reminderTimestamp - todayTimestamp;
+        // Perbedaan dalam hari (menggunakan pembulatan untuk menghindari masalah DST minor)
+        const dayDiff = Math.round(diff / (1000 * 60 * 60 * 24));
+
+        if (dayDiff === 0) {
             return "Hari Ini";
-        } else if (isoDate === tomorrowISO) {
+        } else if (dayDiff === 1) {
             return "Besok";
         } else {
             // Format DD/MM
-            const targetDate = new Date(isoDate + 'T00:00:00'); 
-            return targetDate.toLocaleDateString("id-ID", { day: '2-digit', month: '2-digit' });
+            return reminderDate.toLocaleDateString("id-ID", { day: '2-digit', month: '2-digit' });
         }
     }
 
-    // Fungsi mendapatkan rentang waktu hari ini
-    function getTodayRange() {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayEnd = new Date(today);
-        todayEnd.setHours(23, 59, 59, 999);
-        return { 
-            start: today.toISOString(), 
-            end: todayEnd.toISOString() 
-        };
-    }
 
+    // Fungsi mendapatkan rentang waktu hari ini (berbasis Tanggal Lokal)
+function getTodayRange() {
+    const today = new Date();
+    // Gunakan tanggal lokal, set jam 00:00:00 untuk start
+    today.setHours(0, 0, 0, 0); 
+    const todayStart = new Date(today.getTime()); 
+    
+    // Set jam 23:59:59 untuk end
+    const todayEnd = new Date(today.getTime());
+    todayEnd.setHours(23, 59, 59, 999);
+    
+    return { 
+        start: todayStart.toISOString(), 
+        end: todayEnd.toISOString() 
+    };
+}
 
     // FUNGSI INTI: Memeriksa dan Memuat Data Dashboard
     async function checkAndLoadData() {
-        const { start, end } = getTodayRange();
+      const { start, end } = getTodayRange();
         
         const { count } = await supabase
             .from("transactions")
@@ -355,16 +378,14 @@
 
         if (count > 0) {
             el("inputArea").style.display = 'none'; 
-            el("resultSection").style.display = 'block'; // FIX: Pastikan ditampilkan
+            el("resultSection").style.display = 'block'; 
             el("resultSection").classList.remove("hidden");
-            el("resultSection").classList.add("show");
             
             await loadDashboardData();
         } else {
             el("inputArea").style.display = 'flex'; 
-            el("resultSection").style.display = 'none'; // FIX: Pastikan disembunyikan
+            el("resultSection").style.display = 'none'; 
             el("resultSection").classList.add("hidden");
-            el("resultSection").classList.remove("show");
             
             // Reset nilai visual
             el("todaySales").textContent = 'Rp.0';
@@ -373,8 +394,11 @@
             el("prediction").textContent = 'Data hari ini belum tersedia. Silakan input transaksi untuk hari ini.';
             
             if (chart) chart.destroy(); 
-            chart = null; // Memastikan grafik di-reset
+            chart = null; 
         }
+        
+        // *** FIX FLICKER: Hapus kelas loading setelah semua logika selesai ***
+        document.body.classList.remove('is-loading');
     }
 
 
@@ -411,73 +435,118 @@
     }
 
 
-    // FUNGSI UNTUK MEMUAT GRAFIK MINGGUAN 
-    async function loadWeekChart(todaySalesValue = 0) {
-        const end = new Date();
-        end.setHours(23, 59, 59, 999);
-        const start = new Date(end);
-        start.setDate(start.getDate() - 6);
-        start.setHours(0, 0, 0, 0);
-        
-        const { data } = await supabase.from("transactions")
-            .select("created_at, type, amount")
-            .eq("user_id", user.id)
-            .gte("created_at", start.toISOString())
-            .lte("created_at", end.toISOString());
+    // FUNGSI UNTUK MEMUAT GRAFIK MINGGUAN (Telah dimodifikasi untuk Waktu Lokal)
+async function loadWeekChart(todaySalesValue = 0) {
+    
+    // 1. Tentukan tanggal awal minggu (Senin)
+    const today = new Date();
+    // Dapatkan hari dalam seminggu (0=Minggu, 1=Senin, ..., 6=Sabtu)
+    const dayOfWeek = today.getDay(); 
+    
+    // Hitung perbedaan hari untuk mencapai hari Senin (1)
+    const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; 
+    
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - diffToMonday);
+    startOfWeek.setHours(0, 0, 0, 0); // Awal hari Senin, waktu lokal
 
-        const labels = [];
-        const values = [];
-        const salesByDay = new Map();
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6); // Hari ke-7 (Minggu)
+    endOfWeek.setHours(23, 59, 59, 999); // Akhir hari Minggu, waktu lokal
+    
+    // Perbarui judul grafik
+    const startLabel = startOfWeek.toLocaleDateString('id-ID', {day: 'numeric', month: 'short'});
+    const endLabel = endOfWeek.toLocaleDateString('id-ID', {day: 'numeric', month: 'short'});
+    el('weekChartTitle').textContent = `Penjualan Minggu Ini (${startLabel} - ${endLabel})`;
 
-        for (let i = 0; i < 7; i++) {
-            const d = new Date(start);
-            d.setDate(start.getDate() + i);
-            
-            const dateKey = d.toISOString().split('T')[0];
-            salesByDay.set(dateKey, 0);
-            
-            labels.push(d.toLocaleDateString('id-ID', { weekday: 'short' }));
-        }
+    // 2. Ambil data dari Supabase untuk rentang Senin sampai Minggu
+    const { data } = await supabase.from("transactions")
+        .select("created_at, type, amount")
+        .eq("user_id", user.id)
+        .gte("created_at", startOfWeek.toISOString())
+        .lte("created_at", endOfWeek.toISOString());
 
-        (data || []).forEach(r => {
-            if (r.type === "sale") {
-                const transDate = new Date(r.created_at);
-                const dateKey = transDate.toISOString().split('T')[0]; 
+    // 3. Persiapkan struktur data berdasarkan urutan hari (Senin-Minggu)
+    const dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+    const labels = dayNames;
+    const salesByDay = new Map();
+    const dateKeys = []; // Array untuk menyimpan tanggal ISO (YYYY-MM-DD)
 
-                if (salesByDay.has(dateKey)) {
-                    salesByDay.set(dateKey, salesByDay.get(dateKey) + Number(r.amount));
-                }
-            }
-        });
-        
-        for (let i = 0; i < 7; i++) {
-            const d = new Date(start);
-            d.setDate(start.getDate() + i);
-            const dateKey = d.toISOString().split('T')[0];
-            values.push(salesByDay.get(dateKey) || 0); 
-        }
-
-        const ctx = el("weekChart").getContext("2d");
-        if (chart) chart.destroy();
-        chart = new Chart(ctx, {
-            type: "bar",
-            data: { 
-                labels, 
-                datasets: [{ 
-                    data: values, 
-                    label: "Penjualan (Rp)", 
-                    backgroundColor: '#0faa48'
-                }] 
-            },
-            options: { plugins: { legend: { display:false } }, scales: { y: { beginAtZero: true } } }
-        });
-
-        const currentSales = salesByDay.get(new Date().toISOString().split('T')[0]) || 0;
-        const pred = Math.round(currentSales * 0.1);
-        el("prediction").textContent =
-            `Penjualan Hari Ini: Rp.${currentSales.toLocaleString("id-ID")}\n` +
-            `Prediksi biaya bahan baku (10%): Rp.${pred.toLocaleString("id-ID")}`;
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(startOfWeek);
+        d.setDate(startOfWeek.getDate() + i);
+        // Pastikan kita mengambil kunci tanggal (YYYY-MM-DD) berdasarkan tanggal LOKAL pengguna
+        const dateKey = d.toLocaleDateString('en-CA').split('T')[0]; 
+        salesByDay.set(dateKey, 0); // Inisialisasi data penjualan hari tersebut
+        dateKeys.push(dateKey);
     }
+
+    // 4. Isi data dari hasil query
+    (data || []).forEach(r => {
+        if (r.type === "sale") {
+            // Ubah created_at (dari Supabase, mungkin UTC) menjadi objek Date.
+            const transDate = new Date(r.created_at);
+            // Ambil tanggal transaksi dalam format YYYY-MM-DD LOKAL
+            const dateKey = transDate.toLocaleDateString('en-CA').split('T')[0]; 
+
+            // Perbarui total penjualan di Map
+            if (salesByDay.has(dateKey)) {
+                salesByDay.set(dateKey, salesByDay.get(dateKey) + Number(r.amount));
+            }
+        }
+    });
+    
+    // 5. Susun array nilai sesuai urutan hari (Senin-Minggu)
+    const values = dateKeys.map(dateKey => salesByDay.get(dateKey) || 0);
+    
+    const ctx = el("weekChart").getContext("2d");
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, {
+        type: "bar",
+        data: { 
+            labels, 
+            datasets: [{ 
+                data: values, 
+                label: "Penjualan (Rp)", 
+                backgroundColor: '#0faa48'
+            }] 
+        },
+        options: { 
+            plugins: { legend: { display:false } }, 
+            scales: { 
+                y: { beginAtZero: true },
+                x: {
+                    grid: {
+                        color: (context) => {
+                            // Highlight kolom hari ini
+                            // Ambil kunci tanggal LOKAL hari ini (YYYY-MM-DD)
+                            const todayKey = new Date().toLocaleDateString('en-CA').split('T')[0];
+                            const currentDayIndex = dateKeys.indexOf(todayKey);
+                            
+                            // Jika indeks saat ini cocok dengan indeks kolom, gunakan warna yang berbeda
+                            if (context.index === currentDayIndex) {
+                                return 'rgba(0, 170, 72, 0.3)'; // Warna hijau muda untuk hari ini
+                            }
+                            return 'rgba(0, 0, 0, 0.1)'; // Warna default
+                        },
+                        lineWidth: (context) => {
+                            const todayKey = new Date().toLocaleDateString('en-CA').split('T')[0];
+                            const currentDayIndex = dateKeys.indexOf(todayKey);
+                            return context.index === currentDayIndex ? 2 : 1; 
+                        },
+                    }
+                }
+            } 
+        }
+    });
+
+    // Update Prediksi
+    const currentSales = salesByDay.get(new Date().toLocaleDateString('en-CA').split('T')[0]) || 0;
+    const pred = Math.round(currentSales * 0.1);
+    el("prediction").textContent =
+        `Penjualan Hari Ini: Rp.${currentSales.toLocaleString("id-ID")}\n` +
+        `Prediksi biaya bahan baku (10%): Rp.${pred.toLocaleString("id-ID")}`;
+}
 
 
     // FUNGSI PENTING: saveTransaction
@@ -787,9 +856,12 @@
         el('addReminderModal').classList.add('show'); 
         el('reminderModalStatus').textContent = ''; 
         
-        const today = new Date();
-        const isoDate = today.toISOString().split('T')[0];
-        el('reminderDateInput').value = isoDate;
+        // PERBAIKAN 2: Set atribut min ke tanggal hari ini
+        const todayIso = getTodayIsoDateString();
+        el('reminderDateInput').setAttribute('min', todayIso); 
+        
+        // Set nilai input ke hari ini
+        el('reminderDateInput').value = todayIso;
         el('reminderTextInput').value = '';
     });
 
@@ -834,6 +906,9 @@
             return;
         }
         user = currentUser;
+        
+        // PERBAIKAN 2: Set atribut min saat inisialisasi
+        el('reminderDateInput').setAttribute('min', getTodayIsoDateString());
 
         await checkAndLoadData();
         await loadHistory();
