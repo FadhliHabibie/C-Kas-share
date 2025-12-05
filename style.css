@@ -454,3 +454,8 @@ input::placeholder {
 body.is-loading #inputArea {
     display: none !important; 
 }
+
+
+body.is-loading #resultSection {
+    display: none !important; 
+}

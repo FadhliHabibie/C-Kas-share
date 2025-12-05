@@ -8,37 +8,54 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  
+  <style>
+    /* 1. Atur transisi pada elemen konten utama (#resultSection) */
+    #resultSection {
+        transition: opacity 0.45s ease, transform 0.45s ease, filter 0.45s ease;
+    }
+
+    /* 2. Terapkan kondisi awal (tersembunyi, blur, dan zoom-out) saat body.is-loading aktif */
+    body.is-loading #resultSection {
+        opacity: 0;
+        transform: scale(0.96); 
+        filter: blur(6px);
+        /* Penting: Ganti 'display: none' dari style.css agar transisi bisa bekerja */
+        display: block !important; 
+    }
+  </style>
 </head>
-<body>
-
-     <div id="sidebar" class="sidebar">
-  <div class="sidebar-header">
-    <h2>C-Kas</h2>
-  </div>
-  <a href="/dashboard.html">Dashboard</a>
-  <a href="/history.html">History</a>
-  <a id="logoutSidebar">Logout</a>
-</div>
-
-<div id="overlay" class="overlay"></div>
-<div class="topbar">
-  <button id="menuBtn" class="menu-btn"><i class="fa-solid fa-bars"></i></button>
-  <div class="header-center">
-    <span class="logo-placeholder"><i class="fa-solid fa-calculator"></i></span>
-    <span class="top-title">C-Kas</span>
-  </div>
-</div>
-
-  <main class="container mobile-container">
+<body class="is-loading"> 
     
-    <div class="card">
-      <h2>Daftar Hari Transaksi</h2>
-      <div id="daysList" class="list"></div>
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <h2>C-Kas</h2>
+        </div>
+        <a href="/dashboard.html">Dashboard</a>
+        <a href="/history.html">History</a>
+        <a id="logoutSidebar">Logout</a>
     </div>
 
-    </main>
+    <div id="overlay" class="overlay"></div>
+    <div class="topbar">
+        <button id="menuBtn" class="menu-btn"><i class="fa-solid fa-bars"></i></button>
+        <div class="header-center">
+            <span class="logo-placeholder"><i class="fa-solid fa-calculator"></i></span>
+            <span class="top-title">C-Kas</span>
+        </div>
+    </div>
 
-<div id="editModal" class="modal-backdrop">
+    <div id="resultSection"> 
+      <main class="container mobile-container">
+        
+        <div class="card">
+          <h2>Daftar Hari Transaksi</h2>
+          <div id="daysList" class="list"></div>
+        </div>
+
+      </main>
+    </div>
+    <div id="editModal" class="modal-backdrop">
     <div class="modal-content">
         <h2 id="modalTitle">Edit Ringkasan Tanggal [Tanggal]</h2>
         
@@ -71,22 +88,24 @@
     let existingSalesTransactions = [];
     let existingExpenseTransactions = [];
 
+    
+    // Helper untuk ID
+    const el = (id) => document.getElementById(id); 
+    
     // --- HELPER FUNGSI WAKTU BARU ---
     // Mendapatkan tanggal lokal dalam format YYYY-MM-DD
     function getLocalDateKey(date) {
-        // Menggunakan 'en-CA' menghasilkan YYYY-MM-DD yang stabil 
-        // berdasarkan zona waktu lokal pengguna (WIB/WITA/WIT).
         return date.toLocaleDateString('en-CA');
     }
 
     // Helper untuk memformat tanggal: DD/MM/YYYY
     const parseIndoDate = (dateStr) => {
-        const [day, month, year] = dateStr.split('/');
-        return new Date(year, month - 1, day);
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+           return new Date(parts[2], parts[1] - 1, parts[0]);
+        }
+        return new Date(dateStr); 
     };
-    
-    // Helper untuk ID (diperlukan oleh fungsi lain)
-    const el = (id) => document.getElementById(id); 
 
     // Fungsi untuk menutup semua menu aksi
     const closeAllActionMenus = () => {
@@ -630,6 +649,9 @@
         user = currentUser;
 
         await loadHistory();
+        
+        // LOGIKA ANIMASI: Menghapus class is-loading memicu transisi (blur/zoom kembali normal)
+        document.body.classList.remove('is-loading');
     })();
 
     // Sidebar Controls
