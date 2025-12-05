@@ -94,7 +94,7 @@
         } else {
           const { error } = await supabase.auth.signUp({ email, password });
           if (error) throw error;
-          msg.textContent = 'Akun dibuat. Coba login.';
+          msg.textContent = 'Akun dibuat. confirmasi pesan Email.';
           // optionally switch to login mode
           mode = 'login';
           title.textContent = 'Login';
