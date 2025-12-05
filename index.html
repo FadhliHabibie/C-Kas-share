@@ -85,7 +85,12 @@
           const { error } = await supabase.auth.signInWithPassword({ email, password });
           if (error) throw error;
           // berhasil -> ke dashboard
-          window.location.href = '/dashboard.html';
+          document.body.classList.add('page-exit');
+
+          // delay sedikit agar animasi terlihat
+          setTimeout(() => {
+            window.location.href = '/dashboard.html';
+          }, 450);
         } else {
           const { error } = await supabase.auth.signUp({ email, password });
           if (error) throw error;

@@ -140,6 +140,21 @@
         color: #c0392b; 
     }
     
+    .page-enter {
+    opacity: 0;
+    transform: scale(0.96) translateY(10px);
+    filter: blur(6px);
+    }
+
+    .page-enter-active {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+        filter: blur(0);
+        transition:
+            opacity 0.45s ease,
+            transform 0.45s ease,
+            filter 0.45s ease;
+    }
   </style>
 </head>
 
@@ -294,6 +309,15 @@
 <script type="module">
     import { supabase } from './supabase.js';
 
+    window.addEventListener("DOMContentLoaded", () => {
+    document.body.classList.add("page-enter");
+
+    // jalankan animasi setelah frame berikutnya
+    requestAnimationFrame(() => {
+      document.body.classList.add("page-enter-active");
+    });
+  });
+    
     const el = (id) => document.getElementById(id);
     let user;
     let chart; 
